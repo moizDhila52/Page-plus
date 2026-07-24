@@ -51,74 +51,13 @@ export async function auditWebsite(url) {
 
         const responseTime = Date.now() - start;
         const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const title = $("title").text().trim();
-        const metaDescription = $('meta[name="description"]').attr("content") || "";
-        const h1Count = $("h1").length;
-
-        // Images
-        const totalImages = $("img").length;
-        const imagesWithoutAlt = $("img").filter((i, img) => {
-            return !$(img).attr("alt")?.trim();
-        }).length;
-
-        // Links
-        let internalLinks = 0;
-        let externalLinks = 0;
-        const hostname = parsedUrl.hostname;
-
-        $("a[href]").each((i, el) => {
-            const href = $(el).attr("href")?.trim();
-            if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-                return;
-            }
-
-            try {
-                const targetUrl = new URL(href, url);
-                if (targetUrl.hostname === hostname) {
-                    internalLinks++;
-                } else {
-                    externalLinks++;
-                }
-            } catch {
-                // Ignore malformed hrefs
-            }
-        });
-
-        const totalLinks = internalLinks + externalLinks;
-
-        // Meta tags & SEO elements
-        const canonicalHref = $('link[rel="canonical"]').attr("href") || "";
-        const hasCanonical = Boolean(canonicalHref || $('link[rel="canonical"]').length > 0);
-        const robotsMeta = $('meta[name="robots"]').attr("content") || "";
-        const hasOgTags = $('meta[property^="og:"]').length > 0;
-
-        // Word count
-        const text = $("body").text();
-        const wordCount = text
-            .replace(/\s+/g, " ")
-            .trim()
-            .split(" ")
-            .filter(Boolean).length;
+        const metrics = parseHtmlMetrics(html, url);
 
         return {
             url,
             status: response.status,
             responseTime: `${responseTime} ms`,
-            title,
-            metaDescription,
-            h1Count,
-            totalImages,
-            imagesWithoutAlt,
-            totalLinks,
-            internalLinks,
-            externalLinks,
-            hasCanonical,
-            canonicalHref,
-            robotsMeta,
-            hasOgTags,
-            wordCount,
+            ...metrics,
             analyzedAt: new Date().toISOString(),
         };
     } catch (error) {
@@ -140,4 +79,74 @@ export async function auditWebsite(url) {
             "This website blocks automated requests or is unreachable. Try another website."
         );
     }
+}
+
+export function parseHtmlMetrics(html, targetUrl) {
+    const parsedUrl = new URL(targetUrl);
+    const $ = cheerio.load(html);
+
+    const title = $("title").text().trim();
+    const metaDescription = $('meta[name="description"]').attr("content") || "";
+    const h1Count = $("h1").length;
+
+    // Images
+    const totalImages = $("img").length;
+    const imagesWithoutAlt = $("img").filter((i, img) => {
+        return !$(img).attr("alt")?.trim();
+    }).length;
+
+    // Links
+    let internalLinks = 0;
+    let externalLinks = 0;
+    const hostname = parsedUrl.hostname;
+
+    $("a[href]").each((i, el) => {
+        const href = $(el).attr("href")?.trim();
+        if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+            return;
+        }
+
+        try {
+            const target = new URL(href, targetUrl);
+            if (target.hostname === hostname) {
+                internalLinks++;
+            } else {
+                externalLinks++;
+            }
+        } catch {
+            // Ignore malformed hrefs
+        }
+    });
+
+    const totalLinks = internalLinks + externalLinks;
+
+    // Meta tags & SEO elements
+    const canonicalHref = $('link[rel="canonical"]').attr("href") || "";
+    const hasCanonical = Boolean(canonicalHref || $('link[rel="canonical"]').length > 0);
+    const robotsMeta = $('meta[name="robots"]').attr("content") || "";
+    const hasOgTags = $('meta[property^="og:"]').length > 0;
+
+    // Word count
+    const text = $("body").text();
+    const wordCount = text
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean).length;
+
+    return {
+        title,
+        metaDescription,
+        h1Count,
+        totalImages,
+        imagesWithoutAlt,
+        totalLinks,
+        internalLinks,
+        externalLinks,
+        hasCanonical,
+        canonicalHref,
+        robotsMeta,
+        hasOgTags,
+        wordCount,
+    };
 }
