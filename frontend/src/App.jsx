@@ -19,6 +19,19 @@ function App() {
           <UrlForm setReport={setReport} />
           <AuditCard report={report} />
         </main>
+
+        <footer className="app-footer fade-in-up" style={{ animationDelay: "0.2s" }}>
+          <p>
+            <a
+              href="https://digitalheroesco.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-credit-link"
+            >
+              Built for Digital Heroes Training Task
+            </a>
+          </p>
+        </footer>
       </div>
 
       <div className="background-shapes">
